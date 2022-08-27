@@ -1,41 +1,48 @@
-use std::env::{self, current_dir};
+use clap::Parser;
 use std::fs::read_to_string;
+use std::path::PathBuf;
+use std::process::exit;
+
+#[derive(Debug, Parser)]
+struct Args {
+    /// Word that you need to search
+    #[clap()]
+    word: String,
+
+    /// path of the file where you need to search
+    #[clap()]
+    path: std::path::PathBuf,
+
+    /// search for occurrences in both uppercase and lowercase
+    #[clap(short = 'i', long = "ignore-case")]
+    ignore_case: bool,
+}
 
 fn main() {
-    let word: Option<String> = env::args().nth(1);
-    let path_or_filename: Option<String> = env::args().nth(2);
+    let args = Args::parse();
 
-    if word.is_none() || path_or_filename.is_none() {
-        println!("Usage: {} <word> <path>", env::args().nth(0).unwrap());
-        return;
-    } else {
-        let word = word.unwrap();
-        let path_or_filename = path_or_filename.unwrap();
+    let path: String = resolve_path(args.path);
+    let data: String = read_file_content(path);
 
-        let path: String = resolve_path(path_or_filename);
-        let data: String = read_file_content(path);
-        let occurrences: Vec<String> = find_words_in_string(data, word);
+    let occurrences: Vec<String> = find_words_in_string(data, args.word, args.ignore_case);
 
-        for line in occurrences {
-            println!("{}", line);
-        }
+    for line in occurrences {
+        println!("{}", line);
     }
 }
 
 // if the path_or_filename is an absolute path than return it as it is
 // otherwise convert it to a relative path (relative from where the user is
 // calling the function)
-fn resolve_path(path_or_filename: String) -> String {
-    let path: String;
+fn resolve_path(path_or_filename: PathBuf) -> String {
+    let path: Result<PathBuf, std::io::Error> = path_or_filename.canonicalize();
 
-    if path_or_filename.starts_with("/") {
-        path = path_or_filename;
+    if path.is_ok() {
+        path.unwrap().to_string_lossy().to_string()
     } else {
-        let current_dir: String = current_dir().unwrap().to_str().unwrap().to_string();
-        path = [current_dir, path_or_filename].join("/");
+        eprintln!("File does not exists!");
+        exit(1)
     }
-
-    path
 }
 
 // open the file and read the content
@@ -46,12 +53,22 @@ fn read_file_content(path: String) -> String {
 }
 
 // find all the lines where "word" appear
-fn find_words_in_string(data: String, word: String) -> Vec<String> {
+fn find_words_in_string(data: String, word: String, ignore_case: bool) -> Vec<String> {
     let mut occurrences: Vec<String> = Vec::new();
 
-    for line in data.lines() {
-        if line.contains(&word) {
-            occurrences.push(line.to_string());
+    if ignore_case {
+        // case insensitive
+        for line in data.lines() {
+            if line.to_lowercase().contains(&word.to_lowercase()) {
+                occurrences.push(line.to_string());
+            }
+        }
+    } else {
+        // case sensitive
+        for line in data.lines() {
+            if line.contains(&word) {
+                occurrences.push(line.to_string());
+            }
         }
     }
 
