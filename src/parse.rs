@@ -39,24 +39,37 @@ pub fn find_words_in_string(
     data: Vec<String>,
     word: &String,
     ignore_case: bool,
+    invert_match: bool,
+    max_count: u32,
 ) -> Vec<Vec<String>> {
     let mut occurrences: Vec<Vec<String>> = Vec::new();
+    let mut count_lines: u32;
 
     for datum in data {
+        count_lines = 0;
         let mut occurrences_file: Vec<String> = Vec::new();
-        if ignore_case {
-            // case insensitive
-            for line in datum.lines() {
-                if line.to_lowercase().contains(&word.to_lowercase()) {
-                    occurrences_file.push(line.to_string());
-                }
+        for line in datum.lines() {
+            let fixed_line: String;
+            let fixed_word: String;
+            if ignore_case {
+                // case insensitive
+                fixed_line = line.to_lowercase();
+                fixed_word = word.to_lowercase();
+            } else {
+                //case sensitive
+                fixed_line = line.to_string();
+                fixed_word = word.to_string();
             }
-        } else {
-            // case sensitive
-            for line in datum.lines() {
-                if line.contains(word) {
-                    occurrences_file.push(line.to_string());
-                }
+
+            if fixed_line.contains(&fixed_word) && !invert_match {
+                occurrences_file.push(line.to_string());
+            } else if invert_match {
+                occurrences_file.push(line.to_string());
+            }
+
+            count_lines += 1;
+            if count_lines == max_count {
+                break;
             }
         }
 
